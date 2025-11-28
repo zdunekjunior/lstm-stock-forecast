@@ -65,6 +65,13 @@ except (ImportError, ModuleNotFoundError):
     AdvancedVisualizer = PDFExporter = None
     AdvancedVisualizer_AVAILABLE = False
 
+try:
+    from market_sentiment import MarketSentimentAnalyzer
+    MarketSentiment_AVAILABLE = True
+except (ImportError, ModuleNotFoundError):
+    MarketSentimentAnalyzer = None
+    MarketSentiment_AVAILABLE = False
+
 
 # =============== LOGOWANIE DO OKNA ===============
 root = None
@@ -77,6 +84,9 @@ entry_horizon = None
 entry_epochs = None
 entry_alert_high = None
 entry_alert_low = None
+
+# Analizator nastroju rynku (inicjalizowany leniwie)
+sentiment_analyzer = None
 
 
 def log(msg: str, level="info"):
@@ -870,6 +880,77 @@ def on_technical_indicators_click():
     analyze_technical_indicators(ticker)
 
 
+def on_sentiment_click():
+    """Analiza nastroju rynku na podstawie newsów."""
+    global sentiment_analyzer
+
+    ticker = entry_ticker.get().strip()
+    if not ticker:
+        messagebox.showwarning("Brak tickera", "Wpisz symbol.")
+        return
+
+    if MarketSentimentAnalyzer is None:
+        log("❌ Moduł market_sentiment nie załadowany.")
+        messagebox.showerror("Błąd", "Brak modułu market_sentiment.")
+        return
+
+    if sentiment_analyzer is None:
+        try:
+            sentiment_analyzer = MarketSentimentAnalyzer()
+        except Exception as e:
+            log(f"❌ Błąd inicjalizacji MarketSentimentAnalyzer: {e}")
+            messagebox.showerror(
+                "Błąd", f"Nie udało się zainicjalizować analizatora sentymentu:\n{e}"
+            )
+            return
+
+    try:
+        log(f"\n================ NASTRÓJ RYNKU - {ticker.upper()} ================")
+        log("Pobieram newsy i liczę sentyment...")
+        result = sentiment_analyzer.analyze_news_for_ticker(ticker)
+
+        n = result["num_articles"]
+        avg_sent = result["avg_sentiment"]
+        pos_r = result["positive_ratio"] * 100
+        neg_r = result["negative_ratio"] * 100
+        neu_r = result["neutral_ratio"] * 100
+
+        log(f"🔎 Liczba newsów: {n}")
+        log(f"🧠 Średni sentyment (−1…+1): {avg_sent:.3f}")
+        log(f"   Pozytywne: {pos_r:.1f}% | Negatywne: {neg_r:.1f}% | Neutralne: {neu_r:.1f}%")
+
+        if avg_sent > 0.2:
+            mood = "przewaga pozytywnego sentymentu (raczej bullish)"
+        elif avg_sent < -0.2:
+            mood = "przewaga negatywnego sentymentu (raczej bearish)"
+        else:
+            mood = "sentyment mieszany / neutralny"
+
+        log(f"📌 Wniosek: {mood}")
+
+        details = result.get("details", [])[:3]
+        if details:
+            log("\n📰 Przykładowe nagłówki:")
+            for d in details:
+                log(f" - {d['title']} (score={d['score']:.3f})")
+
+        messagebox.showinfo(
+            "Nastrój rynku",
+            f"Ticker: {ticker.upper()}\n"
+            f"Liczba newsów: {n}\n"
+            f"Średni sentyment: {avg_sent:.3f}\n"
+            f"Pozytywne: {pos_r:.1f}% | Negatywne: {neg_r:.1f}%\n\n"
+            f"{mood}"
+        )
+
+    except Exception as e:
+        log(f"❌ Błąd podczas analizy nastroju: {e}")
+        messagebox.showerror(
+            "Błąd",
+            f"Wystąpił błąd podczas analizy nastroju:\n{e}"
+        )
+
+
 def view_forecast_history():
     """Wyświetl historię prognoz z bazy danych."""
     try:
@@ -1128,6 +1209,10 @@ def build_gui():
     if ForecastDatabase_AVAILABLE:
         btn_history = ttk.Button(adv_buttons_frame, text="📜 Historia", command=view_forecast_history, width=18)
         btn_history.pack(side="left", padx=5, pady=5)
+    
+    if MarketSentiment_AVAILABLE:
+        btn_sentiment = ttk.Button(adv_buttons_frame, text="🧠 Nastrój rynku", command=on_sentiment_click, width=18)
+        btn_sentiment.pack(side="left", padx=5, pady=5)
 
     # === SEKCJA 4: NARZĘDZIA ===
     section4_frame = ttk.LabelFrame(scrollable_frame, text=" 🛠️ Narzędzia ", padding=15)

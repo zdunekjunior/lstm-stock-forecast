@@ -11,3 +11,4 @@ reportlab>=4.0.0
 customtkinter>=5.0
 pillow>=10.0
 requests>=2.28.0
+tf-keras>=2.14.0

@@ -1091,16 +1091,38 @@ def build_gui():
     header_frame = ttk.Frame(scrollable_frame)
     header_frame.pack(fill="x", padx=20, pady=15)
     
+    # Logo i tytuł w jednym wierszu
+    logo_title_frame = ttk.Frame(header_frame)
+    logo_title_frame.pack(fill="x")
+    
+    # Logo
+    try:
+        from PIL import Image, ImageTk
+        logo_path = os.path.join(os.path.dirname(__file__), "zdunek_logo.png")
+        if os.path.exists(logo_path):
+            logo_img = Image.open(logo_path)
+            logo_img = logo_img.resize((80, 80), Image.Resampling.LANCZOS)
+            logo_photo = ImageTk.PhotoImage(logo_img)
+            logo_label = ttk.Label(logo_title_frame, image=logo_photo)
+            logo_label.image = logo_photo  # Zachowaj referencję!
+            logo_label.pack(side="left", padx=(0, 20))
+    except Exception as e:
+        pass  # Logo nie załadowane, idź dalej
+    
+    # Tekst
+    text_frame = ttk.Frame(logo_title_frame)
+    text_frame.pack(side="left", fill="both", expand=True)
+    
     title_label = ttk.Label(
-        header_frame, 
+        text_frame, 
         text="📈 Prognoza Kursu Akcji z LSTM",
         font=ModernTheme.FONTS["title_lg"] if UI_MODERN else ("Helvetica", 18, "bold")
     )
     title_label.pack(anchor="w")
     
     subtitle_label = ttk.Label(
-        header_frame,
-        text="System uczenia maszynowego do prognozowania cen akcji",
+        text_frame,
+        text="System uczenia maszynowego do prognozowania cen akcji | Powered by Zdunek Consulting",
         font=ModernTheme.FONTS["body_sm"] if UI_MODERN else ("Helvetica", 9)
     )
     subtitle_label.pack(anchor="w")
